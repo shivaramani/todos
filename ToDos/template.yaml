@@ -1,0 +1,189 @@
+﻿AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS Serverless API that exposes the add, remove and get operations for a ToDo Application Using Api Gateway, Lambda using Amazon DynamoDB.
+Globals:
+    Function:
+        Timeout: 10
+        Tracing: Active
+Parameters:
+  Env:
+    Type: String
+    Default: uat
+  ShouldCreateTable:
+    Type: String
+    AllowedValues:
+    - 'true'
+    - 'false'
+    Description: If true then the DynamoDB ToDo  table will be created with the CloudFormation stack.
+    Default: false
+  ToDoTableName:
+    Type: String
+    Description: Name of DynamoDB table used to store the ToDo post. If left blank a new table will be created.
+    MinLength: '0'
+    Default: todo
+  ReadCapacity:
+    Type: Number
+    Description: Read capacity for the DynamoDB ToDo table.
+    Default: '5'
+    MinValue: 1
+  WriteCapacity:
+    Type: Number
+    Description: Write capacity for the DynamoDB ToDo table.
+    Default: '5'
+    MinValue: 1
+Conditions:
+  CreateToDoTable:
+    Fn::Equals:
+    - Ref: ShouldCreateTable
+    - 'true'
+  TableNameGenerated:
+    Fn::Equals:
+    - Ref: ToDoTableName
+    - ''
+Resources:
+  GetToDos:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: ToDos::ToDos.Functions::GetToDosAsync
+      Runtime: dotnetcore2.1
+      CodeUri: build_output
+      Description: Function to get a list of ToDos
+      MemorySize: 256
+      Timeout: 30
+      Role: 
+      Policies:
+      - AWSLambdaFullAccess
+      Environment:
+        Variables:
+          ToDoTable:
+            Fn::If:
+            - CreateToDoTable
+            - Ref: ToDoTable
+            - Ref: ToDoTableName
+      Events:
+        PutResource:
+          Type: Api
+          Properties:
+            Path: "/"
+            Method: GET
+  GetToDo:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: ToDos::ToDos.Functions::GetToDoAsync
+      Runtime: dotnetcore2.1
+      CodeUri: build_output
+      Description: Function to get a single ToDo
+      MemorySize: 256
+      Timeout: 30
+      Role: 
+      Policies:
+      - AWSLambdaFullAccess
+      Environment:
+        Variables:
+          ToDoTable:
+            Fn::If:
+            - CreateToDoTable
+            - Ref: ToDoTable
+            - Ref: ToDoTableName
+      Events:
+        PutResource:
+          Type: Api
+          Properties:
+            Path: "/{Id}"
+            Method: GET
+  AddToDo:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: ToDos::ToDos.Functions::AddToDoAsync
+      Runtime: dotnetcore2.1
+      CodeUri: build_output
+      Description: Function to add a ToDo
+      MemorySize: 256
+      Timeout: 30
+      Role: 
+      Policies:
+      - AWSLambdaFullAccess
+      Environment:
+        Variables:
+          ToDoTable:
+            Fn::If:
+            - CreateToDoTable
+            - Ref: ToDoTable
+            - Ref: ToDoTableName
+      Events:
+        PutResource:
+          Type: Api
+          Properties:
+            Path: "/"
+            Method: PUT
+  RemoveToDo:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: ToDos::ToDos.Functions::RemoveToDoAsync
+      Runtime: dotnetcore2.1
+      CodeUri: build_output
+      Description: Function to remove a ToDo
+      MemorySize: 256
+      Timeout: 30
+      Role: 
+      Policies:
+      - AWSLambdaFullAccess
+      Environment:
+        Variables:
+          ToDoTable:
+            Fn::If:
+            - CreateToDoTable
+            - Ref: ToDoTable
+            - Ref: ToDoTableName
+      Events:
+        PutResource:
+          Type: Api
+          Properties:
+            Path: "/"
+            Method: DELETE
+  ToDoTable:
+    Type: AWS::DynamoDB::Table
+    Condition: CreateToDoTable
+    DeletionPolicy: Retain
+    Properties:
+      TableName:
+        Fn::If:
+        - TableNameGenerated
+        - Ref: AWS::NoValue
+        - Ref: ToDoTableName
+      AttributeDefinitions:
+      - AttributeName: Id
+        AttributeType: S
+      KeySchema:
+      - AttributeName: Id
+        KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits:
+          Ref: ReadCapacity
+        WriteCapacityUnits:
+          Ref: WriteCapacity
+Outputs:
+  ToDoTable:
+    Value:
+      Fn::If:
+      - CreateToDoTable
+      - Ref: ToDoTable
+      - Ref: ToDoTableName
+  ToDosApi:
+    Description: "API Gateway endpoint URL for .NET Core ToDos function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/${Env}/ToDos/"
+  GetToDosFunction:
+    Description: "ToDos Api Lambda Function ARN"
+    Value: !GetAtt GetToDos.Arn
+  GetToDoFunction:
+    Description: "ToDo Api Lambda Function ARN"
+    Value: !GetAtt GetToDo.Arn
+  AddToDoFunction:
+    Description: "AddToDo Api Lambda Function ARN"
+    Value: !GetAtt AddToDo.Arn
+  RemoveToDoFunction:
+    Description: "RemoveToDo Api Lambda Function ARN"
+    Value: !GetAtt RemoveToDo.Arn
+  #ToDosFunctionIamRole:
+    #Description: "IAM Role created for .NET Core ToDos function"
+    #Value: !GetAtt ToDosFunctionRole.Arn

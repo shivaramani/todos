@@ -1,0 +1,29 @@
+﻿# This buildspec can be used with Ubuntu with standard runtime, image version
+# the Service role, ex: codebuild-NETCore-CICD-service-role - need to have access to S3
+# Install AWS Sam Cli and do a Sam package and push the artifact to s3 bucket
+# This builds the artifacts and pushes to S3 (provided in the artifacts while creating the codebuild)
+version: 0.2
+phases:
+  install:
+    commands:
+      pip install aws-sam-cli
+      
+  pre_build:
+    commands:
+       - echo Restore started on `date`
+       - cd ToDoApi/src/ToDoApi/
+       - pwd
+       - dotnet --version
+       - sam --version
+       - dotnet restore ToDoApi.csproj
+
+  build:
+    commands:
+       - echo Restore started on `date`
+       - dotnet publish -c release -o ./build_output ToDoApi.csproj
+       - sam package --template-file template.yaml --output-template todoapi.yaml --s3-bucket todo-dev-deploy
+       
+       # Optional - Can deploy with SAM directly here - sample ENV(Dev or Uat) parameter
+       - sam deploy  --template-file todoapi.yaml --stack-name ToDoApi-dev --capabilities CAPABILITY_IAM --region us-east-1 --parameter-overrides Env=dev
+       # sample delete
+       # aws cloudformation delete-stack --stack-name ToDoApi-dev
