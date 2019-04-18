@@ -1,0 +1,39 @@
+Description: CodeBuild, Pipeline for ToDo Application Using Api Gateway, Lambda using Amazon DynamoDB.
+Parameters:
+  CodeBuildServiceRole:
+    Type: String
+    Default: codebuild-NETCore-CICD-service-role
+Resources:
+  ToDoCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Source:
+        Location: https://git-codecommit.us-east-1.amazonaws.com/v1/repos/todos
+        Type: "CODECOMMIT"
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              commands:
+              - echo install started on `date` 
+            pre_build:
+              commands:
+              - echo Restore started on `date` 
+            build:
+              commands:
+              - echo Restore started on `date`  
+      Environment:
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/standard:1.0-1.8.0"
+        Type: "LINUX_CONTAINER"
+      Name: todo-codebuild
+      Description: todo codebuild cfn
+      ServiceRole: !Ref CodeBuildServiceRole
+      TimeoutInMinutes: 60
+      Tags:
+        - Key: Name
+          Value: CodeBuild
+        - Key: Type
+          Value: AWS CodeCommit and CodePipeline 
